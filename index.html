@@ -31,13 +31,15 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
 body{
   background:var(--bg);
   color:var(--text);
   font-family:var(--font-mono);
   min-height:100vh;
   overflow-x:hidden;
+  width:100%;
+  max-width:100vw;
 }
 
 /* ── BACKGROUND ── */
@@ -71,29 +73,36 @@ body::after{
   background:rgba(7,8,13,0.85);
   backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
-  padding:0 24px;
-  height:56px;
+  padding:0 12px;
+  height:auto;
+  min-height:56px;
   display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  width:100%;
+  overflow:hidden;
 }
 .nav-logo{
   font-family:var(--font-display);
-  font-size:18px;font-weight:800;
-  letter-spacing:4px;
+  font-size:16px;font-weight:800;
+  letter-spacing:2px;
   background:linear-gradient(135deg, var(--green), var(--cyan));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  white-space:nowrap;
 }
-.nav-tabs{display:flex;gap:4px;}
+.nav-tabs{display:flex;gap:2px;flex-wrap:nowrap;}
 .nav-tab{
   background:none;border:none;
   color:var(--muted);
-  font-family:var(--font-mono);font-size:11px;
-  letter-spacing:1.5px;text-transform:uppercase;
-  padding:6px 14px;border-radius:6px;
+  font-family:var(--font-mono);font-size:10px;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:6px 8px;border-radius:6px;
   cursor:pointer;transition:all 0.2s;
+  white-space:nowrap;
 }
 .nav-tab:hover{color:var(--text);background:var(--bg3);}
 .nav-tab.active{color:var(--green);background:var(--green-glow);border:1px solid rgba(0,255,163,0.2);}
-.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .live-pill{
   display:flex;align-items:center;gap:6px;
   background:var(--green-glow);
@@ -110,7 +119,7 @@ body::after{
 .page.active{display:block;}
 
 /* ── SCANNER PAGE ── */
-#scannerPage{padding:24px;}
+#scannerPage{padding:16px;max-width:100%;overflow-x:hidden;}
 
 /* ── TOP STATS ── */
 .stats-row{
@@ -163,8 +172,9 @@ body::after{
 /* ── SIGNAL CARDS ── */
 .signals-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));
   gap:16px;margin-bottom:24px;
+  width:100%;overflow:hidden;
 }
 
 .signal-card{
@@ -215,16 +225,17 @@ body::after{
 
 /* ── FUNDING RATE DISPLAY ── */
 .card-funding{
-  margin:0 18px 14px;
+  margin:0 12px 14px;
   background:var(--bg2);border:1px solid var(--border);
-  border-radius:8px;padding:10px 14px;
+  border-radius:8px;padding:10px 12px;
   display:flex;align-items:center;justify-content:space-between;
+  overflow:hidden;
 }
 .funding-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
 .funding-value{font-size:14px;font-weight:600;}
 .funding-value.pos{color:var(--green);}
 .funding-value.neg{color:var(--red);}
-.funding-apr{font-size:10px;color:var(--muted);margin-top:1px;}
+.funding-apr{font-size:9px;color:var(--muted);margin-top:1px;word-break:break-word;}
 .funding-edge{font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:4px;}
 .funding-edge.bear{background:var(--red-glow);color:var(--red);border:1px solid rgba(255,61,107,0.2);}
 .funding-edge.bull{background:var(--green-glow);color:var(--green);border:1px solid rgba(0,255,163,0.2);}
@@ -259,10 +270,11 @@ body::after{
 
 /* ── RISK CALC ── */
 .card-risk{
-  margin:0 18px 16px;
+  margin:0 12px 16px;
   background:var(--bg2);border:1px solid var(--border);
-  border-radius:8px;padding:10px 14px;
+  border-radius:8px;padding:10px 12px;
   display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:6px;overflow:hidden;
 }
 .risk-left{font-size:10px;color:var(--muted);}
 .risk-left span{color:var(--cyan);font-weight:600;}
@@ -270,7 +282,7 @@ body::after{
 .risk-right span{color:var(--gold);font-weight:600;}
 
 /* ── SCAN BUTTON ── */
-.scan-row{display:flex;gap:12px;margin-bottom:24px;align-items:center;}
+.scan-row{display:flex;gap:8px;margin-bottom:24px;align-items:center;flex-wrap:wrap;width:100%;overflow:hidden;}
 #scanBtn{
   background:linear-gradient(135deg, var(--green), var(--cyan));
   color:#000;border:none;
@@ -282,7 +294,7 @@ body::after{
 }
 #scanBtn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,255,163,0.3);}
 #scanBtn.scanning{background:var(--bg3);color:var(--muted);cursor:not-allowed;box-shadow:none;transform:none;}
-.settings-row{display:flex;gap:8px;align-items:center;flex:1;}
+.settings-row{display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;min-width:0;}
 .settings-label{font-size:10px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
 .settings-input{
   background:var(--bg2);border:1px solid var(--border2);
@@ -302,9 +314,10 @@ body::after{
 /* ── TELEGRAM ── */
 .tg-row{
   background:var(--bg1);border:1px solid var(--border);
-  border-radius:12px;padding:14px 18px;
-  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  border-radius:12px;padding:12px 14px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   margin-bottom:24px;
+  width:100%;overflow:hidden;
 }
 .tg-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;white-space:nowrap;}
 .tg-btn{
@@ -326,7 +339,7 @@ body::after{
 .no-sig-text{font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;}
 
 /* ── JOURNAL PAGE ── */
-#journalPage{padding:24px;}
+#journalPage{padding:16px;overflow-x:hidden;}
 .journal-header{
   display:flex;align-items:center;justify-content:space-between;
   margin-bottom:24px;
@@ -429,7 +442,7 @@ body::after{
 .modal-save:hover{transform:translateY(-1px);}
 
 /* ── ANALYTICS PAGE ── */
-#analyticsPage{padding:24px;}
+#analyticsPage{padding:16px;overflow-x:hidden;}
 .analytics-grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -483,7 +496,7 @@ body::after{
 .br-pnl.neg{color:var(--red);}
 
 /* ── SETTINGS PAGE ── */
-#settingsPage{padding:24px;max-width:600px;}
+#settingsPage{padding:16px;max-width:100%;overflow-x:hidden;}
 .settings-section{
   background:var(--bg1);border:1px solid var(--border);
   border-radius:16px;padding:20px;margin-bottom:16px;
