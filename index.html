@@ -621,7 +621,7 @@ body::after{
   <div class="signals-grid" id="signalsGrid"></div>
   <div id="noSignals">
     <div class="no-sig-icon">◈</div>
-    <div class="no-sig-text">Scan starten um Signale zu laden</div>
+    <div class="no-sig-text" id="noSigText">Scan starten um Signale zu laden</div>
   </div>
 </div>
 
@@ -1305,12 +1305,16 @@ async function runScan(){
   }
 
   // Sort: setups first, then by funding rate
-  signals.sort((a,b)=>{
-    const aScore = (a.setup15.valid?2:0)+(a.conf30?.ok?1:0)+(a.conf60?.ok?1:0);
-    const bScore = (b.setup15.valid?2:0)+(b.conf30?.ok?1:0)+(b.conf60?.ok?1:0);
-    if(bScore!==aScore)return bScore-aScore;
-    return b.absRate - a.absRate;
-  });
+  // Filter: only show signals with funding rate > 20% p.a.
+  const MIN_APR = 20;
+  const filteredSignals = signals.filter(s => Math.abs(parseFloat(s.aprPct)) >= MIN_APR);
+  
+  // Sort by funding rate (Scott's rule)
+  filteredSignals.sort((a,b) => b.absRate - a.absRate);
+  
+  // Replace signals with filtered
+  signals.length = 0;
+  filteredSignals.forEach(s => signals.push(s));
 
   scanSignals = signals;
 
@@ -1319,7 +1323,8 @@ async function runScan(){
   const sells = signals.filter(s=>s.direction==='sell').length;
   document.getElementById('statBuy').textContent = buys;
   document.getElementById('statSell').textContent = sells;
-  const topEdge = signals[0] ? Math.abs(parseFloat(signals[0].aprPct)).toFixed(0)+'%' : '–';
+  // Find highest funding rate
+  const topEdge = signals.length ? Math.abs(parseFloat(signals[0].aprPct)).toFixed(0)+'%' : '–';
   document.getElementById('statTopEdge').textContent = topEdge;
 
   // Render
