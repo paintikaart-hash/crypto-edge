@@ -877,6 +877,23 @@ function renderCard(s, idx) {
       <div class="c-lev"><div class="c-lev-l">TP 1</div><div class="c-lev-v lv-t1">${fmt(s.tp1)}</div></div>
       <div class="c-lev"><div class="c-lev-l">TP 2</div><div class="c-lev-v lv-t2">${fmt(s.tp2)}</div></div>
     </div>
+    ${(()=>{
+      const slDist = Math.abs(s.entry - s.sl) / s.entry;
+      if (slDist < 0.004) {
+        const sl04 = isBuy ? s.entry * 0.996 : s.entry * 1.004;
+        const tp1_04 = isBuy ? s.entry + 2*(s.entry - sl04) : s.entry - 2*(sl04 - s.entry);
+        const tp2_04 = isBuy ? s.entry + 3*(s.entry - sl04) : s.entry - 3*(sl04 - s.entry);
+        return `<div style="margin:0 16px 12px;background:rgba(255,209,102,0.05);border:1px solid rgba(255,209,102,0.2);border-radius:7px;padding:8px 12px;">
+          <div style="font-size:8px;color:var(--gold);letter-spacing:1px;margin-bottom:6px;">⚠ SL ENG – ALTERNATIVE 0.4%</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;">
+            <div><div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-bottom:2px;">SL 0.4%</div><div style="font-size:11px;font-weight:600;color:var(--red)">${fmt(sl04)}</div></div>
+            <div><div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-bottom:2px;">TP 1</div><div style="font-size:11px;font-weight:600;color:#69f0ae">${fmt(tp1_04)}</div></div>
+            <div><div style="font-size:7px;color:var(--muted);letter-spacing:1px;margin-bottom:2px;">TP 2</div><div style="font-size:11px;font-weight:600;color:var(--green)">${fmt(tp2_04)}</div></div>
+          </div>
+        </div>`;
+      }
+      return '';
+    })()}
     <div class="c-conf">
       <span class="c-ctag ok-${dc}">✓ 15Min: ${s.setupType}</span>
       <span class="c-ctag ok-${dc}">✓ 30Min: ${s.conf30.type}</span>
