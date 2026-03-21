@@ -163,6 +163,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;transition:color 0.15s;}
 .del-btn:hover{color:var(--red);}
 .j-empty{text-align:center;padding:50px;color:var(--muted);font-size:10px;letter-spacing:2px;}
+.live-pnl{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.5px;}
+.live-pnl.pos{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,255,163,0.3);}
+.live-pnl.neg{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,61,107,0.3);}
+.live-pnl.zero{background:var(--bg3);color:var(--muted);border:1px solid var(--border2);}
+.live-price{font-size:9px;color:var(--muted);}
 
 /* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;}
@@ -219,7 +224,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .nav-tabs .tab{padding:4px 7px;font-size:9px;}
 }
 @media(max-width:480px){
-  .j-head,.j-row{display:none;}
+  .j-head{display:none;}
+  .j-row{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border);}
+  .j-row:last-child{border-bottom:none;}
+  .j-td{font-size:10px;}
+  .j-row-mobile-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .j-row-mobile-mid{display:flex;gap:12px;flex-wrap:wrap;}
+  .j-row-mobile-bot{display:flex;align-items:center;justify-content:space-between;}
 }
 </style>
 </head>
@@ -293,7 +304,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="j-header">
     <div class="page-title">Trade Journal</div>
     <div style="display:flex;gap:8px;">
-      <button class="btn" style="color:var(--cyan);border-color:var(--cyan);" onclick="syncBybit();syncPositions()">⟳ Bybit Sync</button>
       <button class="btn" style="background:linear-gradient(135deg,var(--green),var(--cyan));color:#000;border:none;font-family:var(--font-d);font-weight:700;" onclick="openModal()">+ Trade erfassen</button>
     </div>
   </div>
@@ -361,6 +371,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="m-field"><div class="m-label">Stop Loss</div><input class="m-input" id="mSl" type="number" placeholder="0.00"></div>
       <div class="m-field"><div class="m-label">Take Profit</div><input class="m-input" id="mTp" type="number" placeholder="0.00"></div>
       <div class="m-field"><div class="m-label">Risiko (CHF)</div><input class="m-input" id="mRisk" type="number" placeholder="20"></div>
+      <div class="m-field"><div class="m-label">Quantity (Coins)</div><input class="m-input" id="mQty" type="number" placeholder="Leer = auto"></div>
       <div class="m-field"><div class="m-label">Status</div><select class="m-select" id="mStatus"><option value="open">Offen</option><option value="win">Gewonnen</option><option value="loss">Verloren</option></select></div>
       <div class="m-field"><div class="m-label">P&L (CHF)</div><input class="m-input" id="mPnl" type="number" placeholder="0.00"></div>
       <div class="m-field full"><div class="m-label">Notiz</div><input class="m-input" id="mNote" placeholder="Optional..."></div>
@@ -946,7 +957,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById(tab.dataset.page+'Page').classList.add('active');
     if(tab.dataset.page==='analytics') renderAnalytics();
-    if(tab.dataset.page==='journal') renderJournal();
+    if(tab.dataset.page==='journal') { renderJournal(); fetchLivePrices(); }
   });
 });
 
@@ -954,23 +965,46 @@ document.querySelectorAll('.tab').forEach(tab => {
 function renderJournal() {
   const list = document.getElementById('tradeList');
   if(!trades.length){list.innerHTML='<div class="j-empty">Noch keine Trades erfasst</div>';return;}
-  list.innerHTML = trades.map((t,i)=>`
+  list.innerHTML = trades.map((t,i)=>{
+    const isOpen = t.status === 'open';
+    return `
     <div class="j-row">
-      <div class="j-td">${new Date(t.date).toLocaleDateString('de-CH')}</div>
-      <div class="j-td j-sym">${t.coin}</div>
-      <div class="j-td ${t.dir==='long'?'j-long':'j-short'}">${t.dir==='long'?'▲ L':'▼ S'}</div>
-      <div class="j-td">${t.entry}</div>
-      <div class="j-td" style="color:var(--red)">${t.sl}</div>
-      <div class="j-td" style="color:var(--green)">${t.tp}</div>
-      <div class="j-td">CHF ${t.risk}</div>
-      <div class="j-td"><span class="sbadge s-${t.status}">${t.status==='open'?'OFFEN':t.status==='win'?'GEWONNEN':'VERLOREN'}</span></div>
-      <div class="j-td"><button class="del-btn" onclick="deleteTrade(${i})">✕</button></div>
-    </div>`).join('');
+      <div class="j-row-mobile-top">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="j-td j-sym">${t.coin}</span>
+          <span class="j-td ${t.dir==='long'?'j-long':'j-short'}">${t.dir==='long'?'▲ LONG':'▼ SHORT'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="sbadge s-${t.status}">${t.status==='open'?'OFFEN':t.status==='win'?'GEWONNEN':'VERLOREN'}</span>
+          <button class="del-btn" onclick="deleteTrade(${i})">✕</button>
+        </div>
+      </div>
+      <div class="j-row-mobile-mid">
+        <span class="j-td" style="color:var(--muted);font-size:9px;">${new Date(t.date).toLocaleDateString('de-CH')}</span>
+        <span class="j-td">Entry: <b>${t.entry}</b></span>
+        <span class="j-td" style="color:var(--red)">SL: ${t.sl}</span>
+        <span class="j-td" style="color:var(--green)">TP: ${t.tp}</span>
+        ${t.qty&&parseFloat(t.qty)>0?`<span class="j-td" style="color:var(--muted)">Qty: <b style="color:var(--text)">${t.qty}</b></span>`:''}
+      </div>
+      <div class="j-row-mobile-bot">
+        <span class="j-td" style="color:var(--cyan)">Risiko: CHF ${t.risk}</span>
+        ${isOpen
+          ? `<span class="live-price" id="live-price-${i}">⟳ Live…</span>
+             <span class="live-pnl zero" id="live-pnl-${i}">P&L …</span>`
+          : parseFloat(t.pnl)!==0
+            ? `<span class="j-td" style="color:${parseFloat(t.pnl)>0?'var(--green)':'var(--red)'}">${parseFloat(t.pnl)>0?'+':''}CHF ${parseFloat(t.pnl).toFixed(2)}</span>`
+            : ''
+        }
+        ${t.note?`<span class="j-td" style="color:var(--muted);font-size:9px;">${t.note}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function openModal(){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('mRisk').value=riskAmount.toFixed(0);
+  document.getElementById('mQty').value='';
 }
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
 
@@ -984,6 +1018,7 @@ function saveTrade() {
     sl:document.getElementById('mSl').value,
     tp:document.getElementById('mTp').value,
     risk:document.getElementById('mRisk').value,
+    qty:document.getElementById('mQty').value,
     status:document.getElementById('mStatus').value,
     pnl:parseFloat(document.getElementById('mPnl').value)||0,
     note:document.getElementById('mNote').value,
@@ -997,6 +1032,68 @@ function deleteTrade(i){
   trades.splice(i,1);
   localStorage.setItem('ce_trades',JSON.stringify(trades));
   renderJournal();
+}
+
+// ── LIVE PRICES ──
+let livePrices = {};
+
+function coinToSymbol(coin) {
+  // "PENDLE/USD" → "PENDLEUSDT", "PENDLE/USDT" → "PENDLEUSDT"
+  return coin.replace('/USD','').replace('T','').replace(/\//g,'') + 'USDT';
+}
+
+async function fetchLivePrices() {
+  const openTrades = trades.filter(t => t.status === 'open');
+  if (!openTrades.length) return;
+  const symbols = [...new Set(openTrades.map(t => '"' + coinToSymbol(t.coin) + '"'))].join(',');
+  try {
+    const res = await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbols=[${symbols}]`);
+    if (!res.ok) return;
+    const data = await res.json();
+    data.forEach(d => { livePrices[d.symbol] = parseFloat(d.price); });
+    updateLivePnl();
+  } catch(e) {}
+}
+
+function calcUnrealizedPnl(trade, currentPrice) {
+  const entry = parseFloat(trade.entry);
+  if (!entry || isNaN(entry)) return null;
+  // Use real quantity if entered, otherwise calculate from risk/SL
+  let posSize;
+  if (trade.qty && parseFloat(trade.qty) > 0) {
+    posSize = parseFloat(trade.qty);
+  } else {
+    const sl = parseFloat(trade.sl);
+    const risk = parseFloat(trade.risk);
+    if (!sl || !risk || isNaN(sl) || isNaN(risk)) return null;
+    const slDist = Math.abs(entry - sl);
+    if (slDist === 0) return null;
+    posSize = risk / slDist;
+  }
+  const pnl = trade.dir === 'long'
+    ? (currentPrice - entry) * posSize
+    : (entry - currentPrice) * posSize;
+  return pnl;
+}
+
+function updateLivePnl() {
+  trades.forEach((t, i) => {
+    if (t.status !== 'open') return;
+    const sym = coinToSymbol(t.coin);
+    const price = livePrices[sym];
+    if (!price) return;
+    const pnl = calcUnrealizedPnl(t, price);
+    // Update price display
+    const priceEl = document.getElementById(`live-price-${i}`);
+    if (priceEl) priceEl.textContent = price.toFixed(4);
+    // Update P&L display
+    const pnlEl = document.getElementById(`live-pnl-${i}`);
+    if (pnlEl && pnl !== null) {
+      const cls = pnl > 0.005 ? 'pos' : pnl < -0.005 ? 'neg' : 'zero';
+      pnlEl.className = `live-pnl ${cls}`;
+      pnlEl.textContent = (pnl >= 0 ? '+' : '') + 'CHF ' + pnl.toFixed(2);
+    }
+  });
 }
 
 // ── ANALYTICS ──
@@ -1110,8 +1207,9 @@ window.addEventListener('load', () => {
   loadTg();updateRisk();renderJournal();
   document.getElementById('noSig').style.display='block';
   setTimeout(runScan, 1000);
-  setTimeout(() => { syncBybit(); syncPositions(); }, 2000);
-  setInterval(runScan, 30*60*1000);
+  // Live P&L für offene Trades alle 15 Sekunden
+  fetchLivePrices();
+  setInterval(fetchLivePrices, 15000);
 });
 
 // ── BYBIT VPS SYNC ──
@@ -1216,8 +1314,7 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 3000);
 }
 
-// Auto sync every 5 minutes
-setInterval(() => { syncBybit(); syncPositions(); }, 5*60*1000);
+// Auto scan every 30 minutes
 </script>
 </body>
 </html>
