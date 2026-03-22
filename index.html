@@ -363,7 +363,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- MODAL -->
 <div class="overlay" id="overlay">
   <div class="modal">
-    <div class="modal-title">Trade erfassen</div>
+    <div class="modal-title" id="modalTitle">Trade erfassen</div>
     <div class="m-grid">
       <div class="m-field"><div class="m-label">Coin</div><input class="m-input" id="mCoin" placeholder="z.B. XRP/USD"></div>
       <div class="m-field"><div class="m-label">Richtung</div><select class="m-select" id="mDir"><option value="long">▲ LONG</option><option value="short">▼ SHORT</option></select></div>
@@ -993,6 +993,7 @@ function renderJournal() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="sbadge s-${t.status}">${t.status==='open'?'OFFEN':t.status==='win'?'GEWONNEN':'VERLOREN'}</span>
+          <button class="del-btn" onclick="editTrade(${i})" style="color:var(--cyan);font-size:11px;">✎</button>
           <button class="del-btn" onclick="deleteTrade(${i})">✕</button>
         </div>
       </div>
@@ -1018,18 +1019,50 @@ function renderJournal() {
   }).join('');
 }
 
+let editIndex = -1;
+
 function openModal(){
-  document.getElementById('overlay').classList.add('open');
+  editIndex = -1;
+  document.getElementById('modalTitle').textContent = 'Trade erfassen';
+  document.getElementById('mCoin').value='';
+  document.getElementById('mDir').value='long';
+  document.getElementById('mEntry').value='';
+  document.getElementById('mSl').value='';
+  document.getElementById('mTp').value='';
   document.getElementById('mRisk').value=riskAmount.toFixed(0);
   document.getElementById('mQty').value='';
+  document.getElementById('mStatus').value='open';
+  document.getElementById('mPnl').value='';
+  document.getElementById('mNote').value='';
+  document.getElementById('overlay').classList.add('open');
 }
+
+function editTrade(i){
+  editIndex = i;
+  const t = trades[i];
+  document.getElementById('modalTitle').textContent = 'Trade bearbeiten';
+  document.getElementById('mCoin').value=t.coin||'';
+  document.getElementById('mDir').value=t.dir||'long';
+  document.getElementById('mEntry').value=t.entry||'';
+  document.getElementById('mSl').value=t.sl||'';
+  document.getElementById('mTp').value=t.tp||'';
+  document.getElementById('mRisk').value=t.risk||'';
+  document.getElementById('mQty').value=t.qty||'';
+  document.getElementById('mStatus').value=t.status||'open';
+  document.getElementById('mPnl').value=t.pnl||'';
+  document.getElementById('mNote').value=t.note||'';
+  document.getElementById('overlay').classList.add('open');
+}
+
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
 
 function saveTrade() {
   const coin=document.getElementById('mCoin').value.trim();
   if(!coin){alert('Coin eingeben!');return;}
-  trades.unshift({
-    id:Date.now(),date:Date.now(),coin,
+  const trade = {
+    id: editIndex >= 0 ? trades[editIndex].id : Date.now(),
+    date: editIndex >= 0 ? trades[editIndex].date : Date.now(),
+    coin,
     dir:document.getElementById('mDir').value,
     entry:document.getElementById('mEntry').value,
     sl:document.getElementById('mSl').value,
@@ -1039,7 +1072,12 @@ function saveTrade() {
     status:document.getElementById('mStatus').value,
     pnl:parseFloat(document.getElementById('mPnl').value)||0,
     note:document.getElementById('mNote').value,
-  });
+  };
+  if(editIndex >= 0) {
+    trades[editIndex] = trade;
+  } else {
+    trades.unshift(trade);
+  }
   localStorage.setItem('ce_trades',JSON.stringify(trades));
   closeModal();renderJournal();
 }
@@ -1094,12 +1132,36 @@ function calcUnrealizedPnl(trade, currentPrice) {
 }
 
 function updateLivePnl() {
+  let anyAutoClose = false;
+
   trades.forEach((t, i) => {
     if (t.status !== 'open') return;
     const sym = coinToSymbol(t.coin);
     const price = livePrices[sym];
     if (!price) return;
+
+    const tp = parseFloat(t.tp);
+    const sl = parseFloat(t.sl);
     const pnl = calcUnrealizedPnl(t, price);
+
+    // Auto-close on TP or SL
+    if (tp && sl) {
+      const tpHit = t.dir === 'long' ? price >= tp : price <= tp;
+      const slHit = t.dir === 'long' ? price <= sl : price >= sl;
+
+      if (tpHit) {
+        trades[i].status = 'win';
+        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : parseFloat((parseFloat(t.risk)*2).toFixed(2));
+        anyAutoClose = true;
+        showToast(`✅ ${t.coin} – TP erreicht! +CHF ${trades[i].pnl}`);
+      } else if (slHit) {
+        trades[i].status = 'loss';
+        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : -parseFloat(parseFloat(t.risk).toFixed(2));
+        anyAutoClose = true;
+        showToast(`❌ ${t.coin} – SL erreicht! CHF ${trades[i].pnl}`);
+      }
+    }
+
     // Update price display
     const priceEl = document.getElementById(`live-price-${i}`);
     if (priceEl) priceEl.textContent = price.toFixed(4);
@@ -1111,6 +1173,11 @@ function updateLivePnl() {
       pnlEl.textContent = (pnl >= 0 ? '+' : '') + 'CHF ' + pnl.toFixed(2);
     }
   });
+
+  if (anyAutoClose) {
+    localStorage.setItem('ce_trades', JSON.stringify(trades));
+    renderJournal();
+  }
 }
 
 // ── ANALYTICS ──
