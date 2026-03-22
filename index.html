@@ -373,7 +373,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="m-field"><div class="m-label">Risiko (CHF)</div><input class="m-input" id="mRisk" type="number" placeholder="20"></div>
       <div class="m-field"><div class="m-label">Quantity (Coins)</div><input class="m-input" id="mQty" type="number" placeholder="Leer = auto"></div>
       <div class="m-field"><div class="m-label">Status</div><select class="m-select" id="mStatus"><option value="open">Offen</option><option value="win">Gewonnen</option><option value="loss">Verloren</option></select></div>
-      <div class="m-field"><div class="m-label">P&L (CHF)</div><input class="m-input" id="mPnl" type="number" placeholder="0.00"></div>
+      <div class="m-field"><div class="m-label">P&L (CHF)</div><input class="m-input" id="mPnl" type="text" inputmode="decimal" placeholder="z.B. -4.13 oder 2.40"></div>
       <div class="m-field full"><div class="m-label">Notiz</div><input class="m-input" id="mNote" placeholder="Optional..."></div>
     </div>
     <div class="m-btns">
@@ -1070,7 +1070,7 @@ function saveTrade() {
     risk:document.getElementById('mRisk').value,
     qty:document.getElementById('mQty').value,
     status:document.getElementById('mStatus').value,
-    pnl:parseFloat(document.getElementById('mPnl').value)||0,
+    pnl:pf(document.getElementById('mPnl').value)||0,
     note:document.getElementById('mNote').value,
   };
   if(editIndex >= 0) {
@@ -1111,15 +1111,14 @@ async function fetchLivePrices() {
 }
 
 function calcUnrealizedPnl(trade, currentPrice) {
-  const entry = parseFloat(trade.entry);
+  const entry = pf(trade.entry);
   if (!entry || isNaN(entry)) return null;
-  // Use real quantity if entered, otherwise calculate from risk/SL
   let posSize;
-  if (trade.qty && parseFloat(trade.qty) > 0) {
-    posSize = parseFloat(trade.qty);
+  if (trade.qty && pf(trade.qty) > 0) {
+    posSize = pf(trade.qty);
   } else {
-    const sl = parseFloat(trade.sl);
-    const risk = parseFloat(trade.risk);
+    const sl = pf(trade.sl);
+    const risk = pf(trade.risk);
     if (!sl || !risk || isNaN(sl) || isNaN(risk)) return null;
     const slDist = Math.abs(entry - sl);
     if (slDist === 0) return null;
@@ -1131,6 +1130,12 @@ function calcUnrealizedPnl(trade, currentPrice) {
   return pnl;
 }
 
+// ── SAFE PARSE FLOAT (handles Swiss comma decimals) ──
+function pf(val) {
+  if (!val && val !== 0) return NaN;
+  return parseFloat(String(val).replace(',', '.'));
+}
+
 function updateLivePnl() {
   let anyAutoClose = false;
 
@@ -1140,8 +1145,8 @@ function updateLivePnl() {
     const price = livePrices[sym];
     if (!price) return;
 
-    const tp = parseFloat(t.tp);
-    const sl = parseFloat(t.sl);
+    const tp = pf(t.tp);
+    const sl = pf(t.sl);
     const pnl = calcUnrealizedPnl(t, price);
 
     // Auto-close on TP or SL
@@ -1151,12 +1156,12 @@ function updateLivePnl() {
 
       if (tpHit) {
         trades[i].status = 'win';
-        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : parseFloat((parseFloat(t.risk)*2).toFixed(2));
+        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : parseFloat((pf(t.risk)*2).toFixed(2));
         anyAutoClose = true;
         showToast(`✅ ${t.coin} – TP erreicht! +CHF ${trades[i].pnl}`);
       } else if (slHit) {
         trades[i].status = 'loss';
-        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : -parseFloat(parseFloat(t.risk).toFixed(2));
+        trades[i].pnl = pnl !== null ? parseFloat(pnl.toFixed(2)) : -parseFloat(pf(t.risk).toFixed(2));
         anyAutoClose = true;
         showToast(`❌ ${t.coin} – SL erreicht! CHF ${trades[i].pnl}`);
       }
@@ -1177,6 +1182,7 @@ function updateLivePnl() {
   if (anyAutoClose) {
     localStorage.setItem('ce_trades', JSON.stringify(trades));
     renderJournal();
+    renderAnalytics();
   }
 }
 
@@ -1186,17 +1192,17 @@ function renderAnalytics() {
   const wins=trades.filter(t=>t.status==='win');
   const losses=trades.filter(t=>t.status==='loss');
   const open=trades.filter(t=>t.status==='open');
-  const totalPnl=closed.reduce((a,t)=>a+(t.status==='win'?parseFloat(t.pnl||t.risk*2):-parseFloat(t.risk||0)),0);
+  const totalPnl=closed.reduce((a,t)=>a+(t.status==='win'?pf(t.pnl||t.risk*2):pf(t.pnl||-(t.risk||0))),0);
   const winRate=closed.length?Math.round(wins.length/closed.length*100):0;
-  const avgWin=wins.length?wins.reduce((a,t)=>a+parseFloat(t.pnl||t.risk*2),0)/wins.length:0;
+  const avgWin=wins.length?wins.reduce((a,t)=>a+pf(t.pnl||t.risk*2),0)/wins.length:0;
 
   let streak=0,maxS=0,cur=0;
   [...trades].reverse().forEach(t=>{if(t.status==='win'){cur++;maxS=Math.max(maxS,cur);}else if(t.status==='loss')cur=0;});
 
   let peak=0,dd=0,eq=0;
   [...trades].reverse().forEach(t=>{
-    if(t.status==='win')eq+=parseFloat(t.pnl||t.risk*2);
-    else if(t.status==='loss')eq-=parseFloat(t.risk||0);
+    if(t.status==='win')eq+=pf(t.pnl||t.risk*2);
+    else if(t.status==='loss')eq+=pf(t.pnl||-(t.risk||0));
     if(eq>peak)peak=eq;
     dd=Math.min(dd,eq-peak);
   });
