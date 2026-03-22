@@ -408,12 +408,14 @@ window.fbDeleteTrade = async (id) => {
   try { await db.collection('trades').doc(String(id)).delete(); } catch(e) { console.error('FB delete:', e); }
 };
 window.fbStartListener = () => {
-  db.collection('trades').orderBy('id', 'desc').onSnapshot(snap => {
-    window.trades = snap.docs.map(d => d.data());
+  db.collection('trades').onSnapshot(snap => {
+    window.trades = snap.docs.map(d => d.data()).sort((a,b) => b.id - a.id);
     trades = window.trades;
     if (typeof renderJournal === 'function') renderJournal();
     if (typeof fetchLivePrices === 'function') fetchLivePrices();
     console.log(`Firebase: ${trades.length} Trades geladen`);
+  }, err => {
+    console.error('Firebase Listener Fehler:', err);
   });
 };
 </script>
