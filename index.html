@@ -383,80 +383,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAnQBRalvDMPNGr7xvxGGfPDesL3_3kNF8",
-  authDomain: "crypto-edge-6b029.firebaseapp.com",
-  projectId: "crypto-edge-6b029",
-  storageBucket: "crypto-edge-6b029.firebasestorage.app",
-  messagingSenderId: "774760052717",
-  appId: "1:774760052717:web:af5d36eb22d2c5a654d9e4"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
-window.fbSaveTrade = async (trade) => {
-  try { await db.collection('trades').doc(String(trade.id)).set(trade); } catch(e) { console.error('FB save:', e); }
-};
-window.fbUpdateTrade = async (id, data) => {
-  try { await db.collection('trades').doc(String(id)).update(data); } catch(e) { console.error('FB update:', e); }
-};
-window.fbDeleteTrade = async (id) => {
-  try { await db.collection('trades').doc(String(id)).delete(); } catch(e) { console.error('FB delete:', e); }
-};
-window.fbStartListener = () => {
-  db.collection('trades').onSnapshot(snap => {
-    window.trades = snap.docs.map(d => {
-      const raw = d.data();
-      // Map bot field names → app field names
-      // Bot writes: label, direction, openTime, tp1/tp2, symbol
-      // App expects: coin, dir, date, tp, status
-      const coin = raw.coin || raw.label || (raw.symbol ? raw.symbol.replace('USDT','/USD') : '?');
-      const dir  = raw.dir  || (raw.direction === 'buy' ? 'long' : raw.direction === 'sell' ? 'short' : (raw.direction || 'long'));
-      const date = raw.date || raw.openTime || Date.now();
-      const tp   = raw.tp   || raw.tp1 || '–';
-      const status = raw.status || 'open';
-      return {
-        id:        raw.id || raw.openTime || date,
-        date,
-        coin,
-        dir,
-        entry:     raw.entry     || '–',
-        sl:        raw.sl        || '–',
-        tp,
-        risk:      raw.risk      || '–',
-        qty:       raw.qty       || '',
-        status,
-        pnl:       raw.pnl       || 0,
-        note:      raw.note      || (raw.setupType ? raw.setupType + (raw.aprPct ? ' · FR '+raw.aprPct.toFixed(0)+'% p.a.' : '') : ''),
-        // Keep originals for reference
-        orderId:   raw.orderId,
-        setupType: raw.setupType,
-        tp1:       raw.tp1,
-        tp2:       raw.tp2,
-      };
-    }).sort((a,b) => Number(b.id) - Number(a.id));
-    window._fbLoaded = true;
-    trades = window.trades;
-    if (typeof window.renderJournal === 'function') window.renderJournal();
-    else if (typeof renderJournal === 'function') renderJournal();
-    if (typeof window.fetchLivePrices === 'function') window.fetchLivePrices();
-    else if (typeof fetchLivePrices === 'function') fetchLivePrices();
-    console.log(`Firebase: ${trades.length} Trades geladen`);
-  }, err => {
-    console.error('Firebase Listener Fehler:', err);
-  });
-};
-</script>
 
 <script>
 'use strict';
-// Expose early so Firebase listener can call before full init
-window.renderJournal = function() { setTimeout(function(){ if(typeof renderJournal==='function' && renderJournal !== window._rjPlaceholder) renderJournal(); },0); };
-window._rjPlaceholder = window.renderJournal;
 
 // ============================================================
 // SCOTT'S STRATEGY - COMPLETE IMPLEMENTATION
@@ -1487,6 +1417,74 @@ function showToast(msg) {
 }
 
 // Auto scan every 30 minutes
+</script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAnQBRalvDMPNGr7xvxGGfPDesL3_3kNF8",
+  authDomain: "crypto-edge-6b029.firebaseapp.com",
+  projectId: "crypto-edge-6b029",
+  storageBucket: "crypto-edge-6b029.firebasestorage.app",
+  messagingSenderId: "774760052717",
+  appId: "1:774760052717:web:af5d36eb22d2c5a654d9e4"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+window.fbSaveTrade = async (trade) => {
+  try { await db.collection('trades').doc(String(trade.id)).set(trade); } catch(e) { console.error('FB save:', e); }
+};
+window.fbUpdateTrade = async (id, data) => {
+  try { await db.collection('trades').doc(String(id)).update(data); } catch(e) { console.error('FB update:', e); }
+};
+window.fbDeleteTrade = async (id) => {
+  try { await db.collection('trades').doc(String(id)).delete(); } catch(e) { console.error('FB delete:', e); }
+};
+window.fbStartListener = () => {
+  db.collection('trades').onSnapshot(snap => {
+    window.trades = snap.docs.map(d => {
+      const raw = d.data();
+      // Map bot field names → app field names
+      // Bot writes: label, direction, openTime, tp1/tp2, symbol
+      // App expects: coin, dir, date, tp, status
+      const coin = raw.coin || raw.label || (raw.symbol ? raw.symbol.replace('USDT','/USD') : '?');
+      const dir  = raw.dir  || (raw.direction === 'buy' ? 'long' : raw.direction === 'sell' ? 'short' : (raw.direction || 'long'));
+      const date = raw.date || raw.openTime || Date.now();
+      const tp   = raw.tp   || raw.tp1 || '–';
+      const status = raw.status || 'open';
+      return {
+        id:        raw.id || raw.openTime || date,
+        date,
+        coin,
+        dir,
+        entry:     raw.entry     || '–',
+        sl:        raw.sl        || '–',
+        tp,
+        risk:      raw.risk      || '–',
+        qty:       raw.qty       || '',
+        status,
+        pnl:       raw.pnl       || 0,
+        note:      raw.note      || (raw.setupType ? raw.setupType + (raw.aprPct ? ' · FR '+raw.aprPct.toFixed(0)+'% p.a.' : '') : ''),
+        // Keep originals for reference
+        orderId:   raw.orderId,
+        setupType: raw.setupType,
+        tp1:       raw.tp1,
+        tp2:       raw.tp2,
+      };
+    }).sort((a,b) => Number(b.id) - Number(a.id));
+    window._fbLoaded = true;
+    trades = window.trades;
+    if (typeof window.renderJournal === 'function') window.renderJournal();
+    else if (typeof renderJournal === 'function') renderJournal();
+    if (typeof window.fetchLivePrices === 'function') window.fetchLivePrices();
+    else if (typeof fetchLivePrices === 'function') fetchLivePrices();
+    console.log(`Firebase: ${trades.length} Trades geladen`);
+  }, err => {
+    console.error('Firebase Listener Fehler:', err);
+  });
+};
 </script>
 </body>
 </html>
