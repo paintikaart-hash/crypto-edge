@@ -409,7 +409,37 @@ window.fbDeleteTrade = async (id) => {
 };
 window.fbStartListener = () => {
   db.collection('trades').onSnapshot(snap => {
-    window.trades = snap.docs.map(d => d.data()).sort((a,b) => b.id - a.id);
+    window.trades = snap.docs.map(d => {
+      const raw = d.data();
+      // Map bot field names → app field names
+      // Bot writes: label, direction, openTime, tp1/tp2, symbol
+      // App expects: coin, dir, date, tp, status
+      const coin = raw.coin || raw.label || (raw.symbol ? raw.symbol.replace('USDT','/USD') : '?');
+      const dir  = raw.dir  || (raw.direction === 'buy' ? 'long' : raw.direction === 'sell' ? 'short' : (raw.direction || 'long'));
+      const date = raw.date || raw.openTime || Date.now();
+      const tp   = raw.tp   || raw.tp1 || '–';
+      const status = raw.status || 'open';
+      return {
+        id:        raw.id || raw.openTime || date,
+        date,
+        coin,
+        dir,
+        entry:     raw.entry     || '–',
+        sl:        raw.sl        || '–',
+        tp,
+        risk:      raw.risk      || '–',
+        qty:       raw.qty       || '',
+        status,
+        pnl:       raw.pnl       || 0,
+        note:      raw.note      || (raw.setupType ? raw.setupType + (raw.aprPct ? ' · FR '+raw.aprPct.toFixed(0)+'% p.a.' : '') : ''),
+        // Keep originals for reference
+        orderId:   raw.orderId,
+        setupType: raw.setupType,
+        tp1:       raw.tp1,
+        tp2:       raw.tp2,
+      };
+    }).sort((a,b) => Number(b.id) - Number(a.id));
+    window._fbLoaded = true;
     trades = window.trades;
     if (typeof renderJournal === 'function') renderJournal();
     if (typeof fetchLivePrices === 'function') fetchLivePrices();
@@ -1021,7 +1051,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 function renderJournal() {
   trades = window.trades || trades; // Sync with Firebase data
   const list = document.getElementById('tradeList');
-  if(!trades.length){list.innerHTML='<div class="j-empty">Noch keine Trades erfasst</div>';return;}
+  if(!trades.length){list.innerHTML='<div class="j-empty">'+(window._fbLoaded?'Noch keine Trades':'⟳ Lade aus Firebase…')+'</div>';return;}
   list.innerHTML = trades.map((t,i)=>{
     const isOpen = t.status === 'open';
     return `
